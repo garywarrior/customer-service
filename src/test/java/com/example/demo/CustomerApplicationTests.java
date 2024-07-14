@@ -6,18 +6,28 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.mock.http.server.reactive.MockServerHttpRequest.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CustomerApplicationTests {
 
+
+    @LocalServerPort
+    private int port;
+
+    @Autowired
+    private TestRestTemplate restTemplate;
     @Autowired
     private CustomerRepository customerRepository;
 
@@ -28,14 +38,15 @@ class CustomerApplicationTests {
     @Test
     void testAddAndRetrieveCustomer() {
         Customer customer = new Customer();
-        customer.setFirstName("Alice");
-        customer.setLastName("Smith");
-        customer.setDob(LocalDate.of(2000, 1, 1));
+        customer.setFirstName("John");
+        customer.setLastName("Doe");
+        customer.setDob(LocalDate.parse("15/08/1985", DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
-        customerRepository.save(customer);
+        ResponseEntity<String> response = restTemplate.postForEntity("http://localhost:" + port + "/customers", customer, String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-        Customer retrievedCustomer = customerRepository.findByFirstName("Alice").orElse(null);
-        assertThat(retrievedCustomer).isNotNull();
-        assertThat(retrievedCustomer.getFirstName()).isEqualTo("Alice");
+        ResponseEntity<Customer> getResponse = restTemplate.getForEntity("http://localhost:" + port + "/customers/1", Customer.class);
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(getResponse.getBody().getFirstName()).isEqualTo("John");
     }
 }
